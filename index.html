@@ -1,0 +1,173 @@
+
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>DC - QR Scanner</title>
+
+  <script src="https://unpkg.com/html5-qrcode"></script>
+
+  <style>
+    * { box-sizing: border-box; }
+
+    body {
+      font-family: Arial, sans-serif;
+      margin: 0;
+      padding: 20px;
+      background: #f3f5f8;
+      color: #222;
+    }
+
+    .container {
+      max-width: 500px;
+      margin: 20px auto;
+      padding: 20px;
+      background: white;
+      border-radius: 14px;
+      box-shadow: 0 2px 12px #0001;
+    }
+
+    h2 {
+      text-align: center;
+      margin-top: 0;
+    }
+
+    #reader {
+      width: 100%;
+      margin: 15px auto;
+    }
+
+    button {
+      width: 100%;
+      padding: 14px;
+      margin-top: 12px;
+      border: 0;
+      border-radius: 8px;
+      background: #1769aa;
+      color: white;
+      font-size: 16px;
+      font-weight: bold;
+    }
+
+    button:disabled {
+      background: #999;
+    }
+
+    #result {
+      margin-top: 15px;
+      padding: 12px;
+      background: #eef5ff;
+      border-radius: 8px;
+      overflow-wrap: anywhere;
+      min-height: 45px;
+    }
+
+    .note {
+      color: #666;
+      font-size: 13px;
+      text-align: center;
+      line-height: 1.5;
+    }
+  </style>
+</head>
+
+<body>
+  <div class="container">
+    <h2>QUÉT MÃ QR - DC</h2>
+
+    <p class="note">
+      Nhấn nút bên dưới để mở camera sau của điện thoại.
+    </p>
+
+    <div id="reader"></div>
+
+    <button id="startBtn" onclick="startScanner()">
+      MỞ CAMERA
+    </button>
+
+    <button id="sendBtn" onclick="sendResult()" style="display:none">
+      GỬI MÃ QR VỀ TRANG NHẬP
+    </button>
+
+    <div id="result">Chưa quét mã QR.</div>
+  </div>
+
+  <script>
+    let scanner = null;
+    let scannedCode = "";
+    let isScanning = false;
+
+    async function startScanner() {
+      const result = document.getElementById("result");
+
+      document.getElementById("startBtn").disabled = true;
+      result.textContent = "Đang khởi động camera...";
+
+      try {
+        scanner = new Html5Qrcode("reader");
+
+        await scanner.start(
+          { facingMode: "environment" },
+          {
+            fps: 10,
+            qrbox: { width: 250, height: 250 }
+          },
+          async function(decodedText) {
+            if (!decodedText || scannedCode) return;
+
+            scannedCode = decodedText;
+            result.textContent = "Đã quét được mã: " + scannedCode;
+
+            if (isScanning) {
+              isScanning = false;
+              try {
+                await scanner.stop();
+              } catch (e) {}
+            }
+
+            document.getElementById("startBtn").style.display = "none";
+            document.getElementById("sendBtn").style.display = "block";
+          }
+        );
+
+        isScanning = true;
+        result.textContent = "Camera đang hoạt động. Hãy hướng camera vào mã QR.";
+
+      } catch (error) {
+        document.getElementById("startBtn").disabled = false;
+        result.textContent =
+          "Không mở được camera: " +
+          (error.message || error);
+      }
+    }
+
+    function sendResult() {
+      if (!scannedCode) {
+        alert("Chưa có mã QR.");
+        return;
+      }
+
+      if (window.opener && !window.opener.closed) {
+        window.opener.postMessage(
+          {
+            type: "QR_SCANNED",
+            code: scannedCode
+          },
+          "*"
+        );
+
+        document.getElementById("result").textContent =
+          "Đã gửi mã QR về trang nhập liệu.";
+
+        setTimeout(() => window.close(), 500);
+
+      } else {
+        document.getElementById("result").textContent =
+          "Không tìm thấy trang nhập liệu đang mở. " +
+          "Vui lòng mở camera từ nút Quét QR trong trang Apps Script.";
+      }
+    }
+  </script>
+</body>
+</html>
