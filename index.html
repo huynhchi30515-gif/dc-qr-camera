@@ -42,10 +42,6 @@
       border-radius: 10px;
     }
 
-    #reader video {
-      object-fit: cover;
-    }
-
     button {
       width: 100%;
       padding: 14px;
@@ -89,24 +85,6 @@
       background: #c0392b;
     }
 
-    #zoomSection {
-      display: none;
-      margin-top: 18px;
-      padding: 12px;
-      background: #f4f6f8;
-      border-radius: 8px;
-    }
-
-    #zoomSlider {
-      width: 100%;
-      margin-top: 10px;
-    }
-
-    #zoomValue {
-      font-weight: bold;
-      color: #1769aa;
-    }
-
     #result {
       margin-top: 15px;
       padding: 12px;
@@ -148,13 +126,14 @@
 </head>
 
 <body>
+
   <div class="container">
 
     <h2>QUÉT MÃ QR - DC</h2>
 
     <p class="note">
-      Đưa mã QR vào giữa khung hình.
-      Camera sẽ tự động lấy nét nếu thiết bị hỗ trợ.
+      Camera sau tự động lấy nét và Zoom 3x nếu thiết bị hỗ trợ.
+      Hãy hướng mã QR vào giữa khung hình.
     </p>
 
     <div id="reader"></div>
@@ -166,6 +145,7 @@
     <div id="cameraControls" class="hidden">
 
       <div class="control-row">
+
         <button id="flashBtn" onclick="toggleFlash()">
           BẬT FLASH
         </button>
@@ -173,31 +153,11 @@
         <button id="stopBtn" onclick="stopScanner()">
           TẮT CAMERA
         </button>
-      </div>
 
-      <div id="zoomSection">
-        <label>
-          <strong>ZOOM CAMERA:</strong>
-          <span id="zoomValue">1.0x</span>
-        </label>
-
-        <input
-          type="range"
-          id="zoomSlider"
-          min="1"
-          max="1"
-          step="0.1"
-          value="1"
-          oninput="changeZoom(this.value)"
-        >
-
-        <p class="note">
-          Kéo thanh trượt để phóng to hoặc thu nhỏ mã QR.
-        </p>
       </div>
 
       <div class="camera-info" id="cameraInfo">
-        Đang kiểm tra khả năng lấy nét của camera...
+        Đang kiểm tra camera...
       </div>
 
     </div>
@@ -217,18 +177,17 @@
   </div>
 
   <script>
+
     let scanner = null;
     let scannedCode = "";
+
     let isScanning = false;
     let isSending = false;
 
     let flashOn = false;
     let flashSupported = false;
-    let zoomSupported = false;
 
-    let zoomMin = 1;
-    let zoomMax = 1;
-    let zoomStep = 0.1;
+    const DEFAULT_ZOOM = 3;
 
     // =====================================
     // KHỞI ĐỘNG CAMERA
@@ -246,12 +205,15 @@
       flashOn = false;
 
       document.getElementById("sendBtn").classList.add("hidden");
+
       document.getElementById("cameraControls").classList.add("hidden");
 
       document.getElementById("flashBtn").textContent = "BẬT FLASH";
+
       document.getElementById("flashBtn").classList.remove("active");
 
       startBtn.disabled = true;
+
       result.className = "";
       result.textContent = "Đang khởi động camera...";
 
@@ -265,6 +227,7 @@
         });
 
         await scanner.start(
+
           { facingMode: "environment" },
 
           {
@@ -280,6 +243,7 @@
                 width: size,
                 height: size
               };
+
             },
 
             aspectRatio: 1.0
@@ -290,8 +254,9 @@
           },
 
           function(errorMessage) {
-            // Không hiển thị lỗi liên tục khi chưa tìm thấy QR.
+            // Không hiển thị lỗi khi chưa tìm thấy QR.
           }
+
         );
 
         isScanning = true;
@@ -303,7 +268,7 @@
         result.textContent =
           "Camera đang hoạt động. Hãy hướng camera vào mã QR.";
 
-        // Kiểm tra và tối ưu camera sau khi mở.
+        // Tối ưu camera sau khi mở.
 
         await optimizeCamera();
 
@@ -312,6 +277,7 @@
         isScanning = false;
 
         startBtn.disabled = false;
+
         startBtn.classList.remove("hidden");
 
         result.className = "error";
@@ -321,12 +287,14 @@
           (error.message || error);
 
         scanner = null;
+
       }
+
     }
 
 
     // =====================================
-    // TỰ ĐỘNG LẤY NÉT VÀ KIỂM TRA ZOOM
+    // TỰ ĐỘNG LẤY NÉT VÀ ZOOM 3X
     // =====================================
 
     async function optimizeCamera() {
@@ -337,13 +305,14 @@
 
         if (!scanner || !isScanning) return;
 
-        const capabilities = scanner.getRunningTrackCapabilities();
+        const capabilities =
+          scanner.getRunningTrackCapabilities();
 
-        const settings = scanner.getRunningTrackSettings();
+        let messages = [];
 
-        let focusMessage = "Camera đang sử dụng chế độ lấy nét mặc định.";
-
-        // Yêu cầu lấy nét liên tục nếu camera hỗ trợ.
+        // -----------------------------
+        // TỰ ĐỘNG LẤY NÉT
+        // -----------------------------
 
         if (
           capabilities &&
@@ -359,126 +328,86 @@
               ]
             });
 
-            focusMessage = "Đã bật lấy nét liên tục.";
+            messages.push("Đã bật lấy nét liên tục");
 
           } catch (e) {
 
-            focusMessage =
-              "Camera không cho phép điều khiển lấy nét liên tục.";
-
-          }
-        }
-
-        // Kiểm tra Zoom.
-
-        if (
-          capabilities &&
-          capabilities.zoom !== undefined
-        ) {
-
-          zoomMin = capabilities.zoom.min || 1;
-          zoomMax = capabilities.zoom.max || 1;
-          zoomStep = capabilities.zoom.step || 0.1;
-
-          if (zoomMax > zoomMin) {
-
-            zoomSupported = true;
-
-            // Mặc định Zoom 3x, giới hạn theo khả năng camera.
-const defaultZoom = Math.min(3, zoomMax);
-
-const currentZoom = Math.max(
-  zoomMin,
-  defaultZoom
-);
-
-// Áp dụng Zoom mặc định 3x.
-try {
-  await scanner.applyVideoConstraints({
-    advanced: [
-      { zoom: currentZoom }
-    ]
-  });
-} catch (e) {}
-
-            const slider = document.getElementById("zoomSlider");
-
-            slider.min = zoomMin;
-            slider.max = zoomMax;
-            slider.step = zoomStep;
-            slider.value = currentZoom;
-
-            document.getElementById("zoomValue").textContent =
-              Number(currentZoom).toFixed(1) + "x";
-
-            document.getElementById("zoomSection").style.display =
-              "block";
-
-          } else {
-
-            zoomSupported = false;
+            messages.push("Lấy nét theo mặc định của camera");
 
           }
 
         } else {
 
-          zoomSupported = false;
+          messages.push("Lấy nét theo mặc định của camera");
 
         }
 
-        // Kiểm tra Flash.
+        // -----------------------------
+        // TỰ ĐỘNG ZOOM 3X
+        // -----------------------------
+
+        const zoom = capabilities
+          ? capabilities.zoom
+          : null;
+
+        if (
+          zoom &&
+          typeof zoom.min === "number" &&
+          typeof zoom.max === "number" &&
+          zoom.min <= DEFAULT_ZOOM &&
+          zoom.max >= DEFAULT_ZOOM
+        ) {
+
+          try {
+
+            await scanner.applyVideoConstraints({
+              advanced: [
+                { zoom: DEFAULT_ZOOM }
+              ]
+            });
+
+            messages.push("Zoom 3x");
+
+          } catch (e) {
+
+            messages.push("Thiết bị không áp dụng được Zoom 3x");
+
+          }
+
+        } else {
+
+          messages.push("Camera không hỗ trợ Zoom 3x");
+
+        }
+
+        // -----------------------------
+        // KIỂM TRA FLASH
+        // -----------------------------
 
         flashSupported = !!(
           capabilities &&
           capabilities.torch
         );
 
-        document.getElementById("flashBtn").disabled =
-          !flashSupported;
+        const flashBtn = document.getElementById("flashBtn");
+
+        flashBtn.disabled = !flashSupported;
 
         if (!flashSupported) {
 
-          document.getElementById("flashBtn").textContent =
-            "KHÔNG HỖ TRỢ FLASH";
+          flashBtn.textContent = "KHÔNG HỖ TRỢ FLASH";
 
         }
 
-        info.textContent = focusMessage;
+        info.textContent = messages.join(" | ");
 
       } catch (error) {
 
         info.textContent =
-          "Camera đang sử dụng chế độ lấy nét mặc định.";
+          "Camera đang sử dụng chế độ mặc định.";
 
       }
-    }
 
-
-    // =====================================
-    // ĐIỀU CHỈNH ZOOM
-    // =====================================
-
-    async function changeZoom(value) {
-
-      document.getElementById("zoomValue").textContent =
-        Number(value).toFixed(1) + "x";
-
-      if (!scanner || !isScanning || !zoomSupported) return;
-
-      try {
-
-        await scanner.applyVideoConstraints({
-          advanced: [
-            { zoom: Number(value) }
-          ]
-        });
-
-      } catch (error) {
-
-        document.getElementById("cameraInfo").textContent =
-          "Không thể điều chỉnh Zoom trên thiết bị này.";
-
-      }
     }
 
 
@@ -507,11 +436,13 @@ try {
         if (flashOn) {
 
           btn.textContent = "TẮT FLASH";
+
           btn.classList.add("active");
 
         } else {
 
           btn.textContent = "BẬT FLASH";
+
           btn.classList.remove("active");
 
         }
@@ -522,11 +453,12 @@ try {
           "Thiết bị không hỗ trợ bật/tắt Flash.";
 
       }
+
     }
 
 
     // =====================================
-    // XỬ LÝ KHI QUÉT THÀNH CÔNG
+    // QUÉT QR THÀNH CÔNG
     // =====================================
 
     async function handleScanSuccess(decodedText) {
@@ -544,7 +476,7 @@ try {
       result.textContent =
         "Đã quét được mã QR: " + scannedCode;
 
-      // Dừng camera sau khi quét thành công.
+      // Tắt camera sau khi quét.
 
       try {
 
@@ -559,6 +491,7 @@ try {
       document.getElementById("startBtn").classList.add("hidden");
 
       document.getElementById("sendBtn").classList.remove("hidden");
+
     }
 
 
@@ -571,13 +504,17 @@ try {
       try {
 
         if (scanner && isScanning) {
+
           await scanner.stop();
+
         }
 
       } catch (error) {}
 
       isScanning = false;
       flashOn = false;
+
+      scanner = null;
 
       document.getElementById("cameraControls").classList.add("hidden");
 
@@ -588,7 +525,6 @@ try {
       document.getElementById("result").textContent =
         "Camera đã tắt. Nhấn MỞ CAMERA để quét lại.";
 
-      scanner = null;
     }
 
 
@@ -603,6 +539,7 @@ try {
         alert("Chưa có mã QR.");
 
         return;
+
       }
 
       if (isSending) return;
@@ -612,18 +549,23 @@ try {
         isSending = true;
 
         window.opener.postMessage(
+
           {
             type: "QR_SCANNED",
             code: scannedCode
           },
+
           "*"
+
         );
 
         document.getElementById("result").textContent =
           "Đã gửi mã QR về trang nhập liệu.";
 
         setTimeout(function() {
+
           window.close();
+
         }, 500);
 
       } else {
@@ -635,6 +577,7 @@ try {
           "Vui lòng mở camera từ nút Quét QR trong trang Apps Script.";
 
       }
+
     }
 
   </script>
