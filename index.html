@@ -384,10 +384,22 @@
 
             zoomSupported = true;
 
-            const currentZoom =
-              settings && settings.zoom
-                ? settings.zoom
-                : zoomMin;
+            // Mặc định Zoom 3x, giới hạn theo khả năng camera.
+const defaultZoom = Math.min(3, zoomMax);
+
+const currentZoom = Math.max(
+  zoomMin,
+  defaultZoom
+);
+
+// Áp dụng Zoom mặc định 3x.
+try {
+  await scanner.applyVideoConstraints({
+    advanced: [
+      { zoom: currentZoom }
+    ]
+  });
+} catch (e) {}
 
             const slider = document.getElementById("zoomSlider");
 
